@@ -65,13 +65,20 @@ result
     private_key
 
 }
-#[test]
- fn secret_key_is_512_bits(){
-    let private_key: String=generate_keys();
 
-   assert_eq!(private_key.len()*4, 512, "Private key is not 512 bits long");
+
+#[cfg(test)]
+mod tests{
+    use super::*;
+    #[test]
+    fn secret_key_is_512_bits(){
+       let private_key: String=generate_keys();
    
- }
+      assert_eq!(private_key.len()*4, 512, "Private key is not 512 bits long");
+      
+    }
+}
+
 // fn sign(secret_key:&str, message:&str)->String{
 
 // }
