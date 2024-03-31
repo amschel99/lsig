@@ -130,12 +130,6 @@ fn sign(secret_key: &str, message: &str) -> String {
 
     signature
 }
-// fn verify(public_key:&str, message:&str, signature:&str)->bool{
-
-// }
-// fn generate_private_key(){
-
-// }
 
 #[cfg(test)]
 mod tests {
