@@ -1,6 +1,4 @@
-
-use std::result;
-
+use sha256::{digest};
 use rand::{rngs::OsRng, Rng};
 enum Index {
     Zero = 0,
@@ -49,7 +47,7 @@ impl PrivateKey{
     }
 }
 
-fn generate_keys()->String{
+fn generate_private_key()->String{
 let private_key:String={
 let mut result=String::new();
 
@@ -65,18 +63,32 @@ result
     private_key
 
 }
+fn generate_public_key()->String{
+digest(generate_private_key())
 
+}
+fn generate_keys()->(String, String){
+(generate_private_key(), generate_public_key())
+}
 
 #[cfg(test)]
 mod tests{
     use super::*;
     #[test]
     fn secret_key_is_512_bits(){
-       let private_key: String=generate_keys();
+       let private_key: String=generate_private_key();
    
       assert_eq!(private_key.len()*4, 512, "Private key is not 512 bits long");
       
     }
+    #[test]
+    fn generate_keys_works(){
+        let keys= generate_keys();
+        println!("Private Key is :{}",keys.0);
+        println!("Public Key is :{}", keys.1);
+    }
+
+ 
 }
 
 // fn sign(secret_key:&str, message:&str)->String{
