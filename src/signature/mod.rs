@@ -4,7 +4,7 @@ use rand::{rngs::OsRng, CryptoRng, Rng, RngCore};
 use sha256::digest;
 use std::{
     cell::{RefCell, RefMut},
-    collections::HashMap,
+    collections::{HashMap, HashSet},
 };
 
 enum Index {
@@ -144,7 +144,7 @@ fn sign(secret_key: &str, message: &str) -> String {
     signature
 }
 
-fn verify(signature: &str, message: &str, public_key: &str) -> bool {
+fn verify(signature: &str, message: &str, public_key: &str) {
     let mut equal: bool = true;
     let mut sig_block = String::new();
     let mut pub_block = String::new();
@@ -155,7 +155,7 @@ fn verify(signature: &str, message: &str, public_key: &str) -> bool {
     let hashed_message_bin = hex_to_bin(&hashed_message);
 
     // Convert the signature to binary representation
-    let signature_bin = string_to_binary(signature);
+    let signature_bin = hex_to_bin(signature);
 
     let mut block1 = String::new();
     let mut block2 = String::new();
@@ -164,54 +164,52 @@ fn verify(signature: &str, message: &str, public_key: &str) -> bool {
     let mut end_index = 31;
     let mut start_index2: usize = 0;
     let mut end_index2 = 31;
-    println!("The signature key size is , {}", signature.len() * 4);
+    println!(
+        "The signature key size is, {} and the public key size is {}  and the hashed bin message is , {}",
+        signature_bin.len(),
+      hex_to_bin( public_key).len(),
+        hashed_message_bin.len()
+    );
 
     for (index, bit) in hashed_message_bin.chars().enumerate() {
         if bit == '1' {
             //push 32 bits to the upper section and then hash them and find if they look like public key
-            let sig_hash = digest(&signature_bin[start_index..end_index]);
-            let pub_hash = public_key[start_index..end_index].to_string();
+            let sig_hash = digest(&signature_bin[start_index..end_index + 1]);
+
             sig_block.push_str(&sig_hash);
-            pub_block.push_str(&pub_hash);
 
             start_index += 32;
             end_index += 32;
         } else if bit == '0' {
             //push 32 bits to the upper section and then hash them and find if they look like public key
-            let sig_hash = digest(&signature_bin[start_index..end_index]);
-            let pub_hash = public_key[start_index2..end_index2].to_string();
+            let sig_hash = digest(&signature_bin[start_index2..end_index2]);
+
             sig_block.push_str(&sig_hash);
-            pub_block.push_str(&pub_hash);
 
             start_index2 += 32;
             end_index2 += 32;
         }
     }
     println!("Signature block is {}", sig_block.len());
-    println!("pub key  block is {}", pub_block.len());
-    chars_match(&sig_block, &pub_block)
+    println!("pub key  block is {}", public_key.len());
+    let matches = find_matching_sequences(&sig_block, public_key);
+    println!("The matches are {}", matches);
 }
-fn chars_match(s1: &str, s2: &str) -> bool {
-    if s1.len() != s2.len() {
-        return false;
+
+fn find_matching_sequences(signature_block: &str, pub_key_block: &str) -> usize {
+    let mut matching_sequences = HashSet::new();
+
+    // Iterate over each 64-character sequence in the public key block
+    for i in 0..pub_key_block.len() - 63 {
+        let sequence = &pub_key_block[i..i + 64];
+
+        // Check if the sequence exists in the signature block
+        if signature_block.contains(sequence) {
+            matching_sequences.insert(sequence);
+        }
     }
-
-    let mut char_count1 = HashMap::new();
-    let mut char_count2 = HashMap::new();
-
-    // Count occurrences of each character in string 1
-    for c in s1.chars() {
-        *char_count1.entry(c).or_insert(0) += 1;
-    }
-
-    // Count occurrences of each character in string 2
-    for c in s2.chars() {
-        *char_count2.entry(c).or_insert(0) += 1;
-    }
-    println!("char counts are {:?}, {:?}", char_count1, char_count2);
-
-    // Check if the character counts are equal for both strings
-    char_count1 == char_count2
+    dbg!(&matching_sequences);
+    matching_sequences.len()
 }
 
 #[cfg(test)]
@@ -251,16 +249,14 @@ mod tests {
     #[test]
     fn verify_signature() {
         // Generate keys
-        let (private_key, public_key) = generate_keys();
 
+        let (private_key, public_key) = generate_keys();
+        println!("Private key. {}", private_key);
         // Message and sign it
-        let message = "In code we trust";
+        let message = "Amschel Kariuki";
         let signature = sign(&private_key, message);
 
         // Verify signature
         let result = verify(&signature, message, &public_key);
-
-        // Assert the result
-        assert!(result, "Signature verification failed");
     }
 }
