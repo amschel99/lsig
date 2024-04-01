@@ -1,262 +1,164 @@
-use crate::helpers::{bin_to_hex, hex_to_bin, string_to_binary};
-use num_bigint::{BigInt, BigUint};
-use rand::{rngs::OsRng, CryptoRng, Rng, RngCore};
-use sha256::digest;
-use std::{
-    cell::{RefCell, RefMut},
-    collections::{HashMap, HashSet},
-};
+use hex;
+use rand::prelude::*;
+use sha2::{Digest, Sha256};
 
-enum Index {
-    Zero = 0,
-    One = 1,
+const KEY_SIZE: usize = 256;
+const KEY_ELEMENT_SIZE: usize = 32;
+
+pub fn random_string() -> String {
+    let str_bytes = rand::thread_rng().gen::<[u8; KEY_ELEMENT_SIZE]>();
+    hex::encode(str_bytes)
 }
 
-struct PrivateKey {
-    index: Index,
-    data: [String; 8],
+pub struct PrivateKey {
+    key_pairs: Vec<(String, String)>,
 }
+
+pub struct PublicKey {
+    key_pairs: Vec<(String, String)>,
+}
+
+pub struct Signature {
+    signatures: Vec<String>,
+}
+
 impl PrivateKey {
-    fn index_zero() -> Self {
-        let mut rng = OsRng;
-        let mut data: [String; 8] = Default::default();
-
-        for num in data.iter_mut() {
-            *num = format!("{:0256X}", generate_random_256_bit_number(&mut rng));
-        }
-
-        PrivateKey {
-            index: Index::Zero,
-            data,
-        }
-    }
-
-    fn index_one() -> Self {
-        let mut rng = OsRng;
-        let mut data: [String; 8] = Default::default();
-
-        for num in data.iter_mut() {
-            *num = format!("{:0256X}", generate_random_256_bit_number(&mut rng));
-        }
-
-        PrivateKey {
-            index: Index::One,
-            data,
-        }
+    pub fn get_key(&self, i: usize) -> (String, String) {
+        self.key_pairs[i].clone()
     }
 }
-fn generate_random_256_bit_number<R: RngCore + CryptoRng>(rng: &mut R) -> BigUint {
-    let mut bytes = [0u8; 32];
-    rng.fill_bytes(&mut bytes);
-    BigUint::from_bytes_be(&bytes)
-}
-fn generate_private_key() -> String {
-    let private_key: String = {
-        let mut result = String::new();
 
-        for element in PrivateKey::index_zero().data.iter() {
-            result.push_str(&element.to_string());
-        }
-        for element in PrivateKey::index_one().data.iter() {
-            result.push_str(&element.to_string());
-        }
-
-        result
-    };
-
-    private_key
-}
-fn generate_public_key() -> String {
-    let mut public_key = String::new();
-    let private_key_bin = hex_to_bin(&generate_private_key());
-
-    let mut start_index = 0;
-    let mut end_index = 31;
-
-    for _ in 0..128 {
-        //generate a public key hash
-        public_key.push_str(digest(&private_key_bin[start_index..end_index]).as_str());
-        start_index += 32;
-        end_index += 32;
+impl PublicKey {
+    pub fn get_key(&self, i: usize) -> (String, String) {
+        self.key_pairs[i].clone()
     }
-
-    public_key
-}
-fn generate_keys() -> (String, String) {
-    (generate_private_key(), generate_public_key())
 }
 
-fn sign(secret_key: &str, message: &str) -> String {
-    let mut signature = String::new();
-    let hashed_message = digest(message);
-    let mut secret_key_0 = String::new();
-    let mut secret_key_1 = String::new();
-    //error below
-    let hashed_bin_representation = hex_to_bin(&hashed_message); //this is not in hex
-    println!(
-        "The size of the hashed message in bin {}",
-        hashed_bin_representation.len()
-    ); // println!("{}", hashed_bin_representation);
-    for (index, c) in hex_to_bin(secret_key).chars().enumerate() {
-        if index < 8192 {
-            secret_key_0.push_str(&c.to_string());
+impl Signature {
+    pub fn get_key(&self, i: usize) -> String {
+        self.signatures[i].clone()
+    }
+}
+
+pub fn random_private_key() -> PrivateKey {
+    let mut private_key: Vec<(String, String)> = Vec::with_capacity(KEY_SIZE);
+    for _i in 0..KEY_SIZE {
+        private_key.push((random_string(), random_string()));
+    }
+    PrivateKey {
+        key_pairs: private_key,
+    }
+}
+
+fn hash(str: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(str);
+    hex::encode(hasher.finalize())
+}
+
+pub fn create_public_key(private_key: &PrivateKey) -> PublicKey {
+    let mut public_key: Vec<(String, String)> = Vec::with_capacity(KEY_SIZE);
+    for item in private_key.key_pairs.iter() {
+        let (first_key, second_key) = item;
+        public_key.push((hash(first_key), hash(second_key)));
+    }
+    PublicKey {
+        key_pairs: public_key,
+    }
+}
+
+fn hash_to_binary_array(hash_string: String) -> Vec<u8> {
+    let message = hex::decode(hash_string);
+    let mut str_binary_array: Vec<u8> = Vec::with_capacity(KEY_SIZE);
+    match message {
+        Ok(bytes) => {
+            for byte in bytes.iter() {
+                for i in (0..8).rev() {
+                    let bit = (byte >> i) & 1;
+                    str_binary_array.push(bit);
+                }
+            }
+            str_binary_array
+        }
+        Err(_error) => str_binary_array,
+    }
+}
+
+pub fn sign(message_hash: String, private_key: &PrivateKey) -> Signature {
+    let message_binary_array = hash_to_binary_array(message_hash);
+    let mut signature_array: Vec<String> = Vec::with_capacity(KEY_SIZE);
+    for (index, item) in message_binary_array.iter().enumerate() {
+        let (first_key, second_key) = private_key.get_key(index);
+        if item.clone() == 0 {
+            signature_array.push(first_key);
         } else {
-            secret_key_1.push_str(&c.to_string());
+            signature_array.push(second_key);
         }
     }
-    println!(
-        "The sizes of the blocks are , {}, {}",
-        secret_key_0.len(),
-        secret_key_1.len()
-    );
-    let mut bits = 0;
-    let mut start_index = 0;
-    let mut end_index = 31;
-
-    let mut start_index2 = 0;
-    let mut end_index2 = 31;
-    let mut counter = 0;
-    for (_, b) in hashed_bin_representation.chars().enumerate() {
-        if b == '1' {
-            bits += 32;
-            signature.push_str(&secret_key_1[start_index..end_index + 1]);
-            start_index += 32;
-            end_index += 32;
-        } else if b == '0' {
-            bits += 32;
-            signature.push_str(&secret_key_0[start_index2..end_index2 + 1]);
-            start_index2 += 32;
-            end_index2 += 32;
-        }
-        println!("After that bullshit its, {}", signature.len());
+    Signature {
+        signatures: signature_array,
     }
-    println!(
-        "The signature length afterwards is, {} and bits are {}",
-        signature.len(),
-        bits
-    );
-    signature = bin_to_hex(&signature);
-    // println!(
-    //     "the indeces are, {}, {}",
-    //     index_secret_key_0, index_secret_key_1
-    // );
-
-    signature
 }
 
-fn verify(signature: &str, message: &str, public_key: &str) {
-    let mut equal: bool = true;
-    let mut sig_block = String::new();
-    let mut pub_block = String::new();
-    // Hash the message to get the digest
-    let hashed_message = digest(message);
-
-    // Convert the hashed message to binary representation
-    let hashed_message_bin = hex_to_bin(&hashed_message);
-
-    // Convert the signature to binary representation
-    let signature_bin = hex_to_bin(signature);
-
-    let mut block1 = String::new();
-    let mut block2 = String::new();
-
-    let mut start_index = 0;
-    let mut end_index = 31;
-    let mut start_index2: usize = 0;
-    let mut end_index2 = 31;
-    println!(
-        "The signature key size is, {} and the public key size is {}  and the hashed bin message is , {}",
-        signature_bin.len(),
-      hex_to_bin( public_key).len(),
-        hashed_message_bin.len()
-    );
-
-    for (index, bit) in hashed_message_bin.chars().enumerate() {
-        if bit == '1' {
-            //push 32 bits to the upper section and then hash them and find if they look like public key
-            let sig_hash = digest(&signature_bin[start_index..end_index + 1]);
-
-            sig_block.push_str(&sig_hash);
-
-            start_index += 32;
-            end_index += 32;
-        } else if bit == '0' {
-            //push 32 bits to the upper section and then hash them and find if they look like public key
-            let sig_hash = digest(&signature_bin[start_index2..end_index2]);
-
-            sig_block.push_str(&sig_hash);
-
-            start_index2 += 32;
-            end_index2 += 32;
+pub fn verify(message_hash: String, signature: &Signature, public_key: &PublicKey) -> bool {
+    let message_binary_array = hash_to_binary_array(message_hash);
+    for (index, item) in message_binary_array.iter().enumerate() {
+        let sig = signature.get_key(index);
+        let private_key_hash = hash(&sig);
+        let (first_pub_key_hash, second_pub_key_hash) = public_key.get_key(index);
+        if item.clone() == 0 {
+            if private_key_hash != first_pub_key_hash {
+                return false;
+            }
+        } else {
+            if private_key_hash != second_pub_key_hash {
+                return false;
+            }
         }
     }
-    println!("Signature block is {}", sig_block.len());
-    println!("pub key  block is {}", public_key.len());
-    let matches = find_matching_sequences(&sig_block, public_key);
-    println!("The matches are {}", matches);
+    return true;
 }
-
-fn find_matching_sequences(signature_block: &str, pub_key_block: &str) -> usize {
-    let mut matching_sequences = HashSet::new();
-
-    // Iterate over each 64-character sequence in the public key block
-    for i in 0..pub_key_block.len() - 63 {
-        let sequence = &pub_key_block[i..i + 64];
-
-        // Check if the sequence exists in the signature block
-        if signature_block.contains(sequence) {
-            matching_sequences.insert(sequence);
-        }
-    }
-    dbg!(&matching_sequences);
-    matching_sequences.len()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn secret_key_is_512_bits() {
-        let private_key: String = generate_private_key();
 
-        // assert_eq!(
-        //     private_key.len() * 4,
-        //     512,
-        //     "Private key is not 512 bits long"
-        // );
-    }
     #[test]
-    fn generate_keys_works() {
-        let keys = generate_keys();
-        println!("Private Key is :{}", keys.0);
-        println!("Public Key is :{}", keys.1);
-    }
-    #[test]
-    fn hash_message_works() {
-        sign(generate_keys().0.as_str(), "In code we trust");
-    }
-    #[test]
-    fn bin_to_hex_works() {
-        let hex = "D5B2";
-        let binary = hex_to_bin(hex);
-        let bin = string_to_binary(hex);
-        assert_eq!(bin, "1101010110110010");
-    }
-    #[test]
-    fn pub_key() {
-        generate_public_key();
-    }
-    #[test]
-    fn verify_signature() {
-        // Generate keys
+    fn test_sign_and_verify() {
+        let private_key = random_private_key();
+        let public_key = create_public_key(&private_key);
+        let message_hash = hash("Hello, world!");
+        let message_hash2 = hash("Hello");
+        let signature = sign(message_hash.clone(), &private_key);
 
-        let (private_key, public_key) = generate_keys();
-        println!("Private key. {}", private_key);
-        // Message and sign it
-        let message = "Amschel Kariuki";
-        let signature = sign(&private_key, message);
+        assert_eq!(verify(message_hash.clone(), &signature, &public_key), true);
+        assert_eq!(
+            verify(message_hash2.clone(), &signature, &public_key),
+            false
+        );
+        // Change a bit in the message hash to make verification fail
+        let mut message_hash_bytes = hex::decode(message_hash).unwrap();
+        message_hash_bytes[0] ^= 1; // Flipping first bit
+        let modified_message_hash = hex::encode(message_hash_bytes);
+        assert_eq!(
+            verify(modified_message_hash, &signature, &public_key),
+            false
+        );
+    }
 
-        // Verify signature
-        let result = verify(&signature, message, &public_key);
+    #[test]
+    fn test_hash_to_binary_array() {
+        let hash_string = "1234567890abcdef";
+        let binary_array = hash_to_binary_array(hash_string.to_string());
+
+        // Ensure binary array has correct length and values
+        assert_eq!(binary_array.len(), hash_string.len() * 4);
+
+        for (i, hex_char) in hash_string.chars().enumerate() {
+            let hex_value = hex_char.to_digit(16).unwrap();
+            for j in (0..4).rev() {
+                let bit = (hex_value >> j) & 1;
+                assert_eq!(binary_array[i * 4 + (3 - j) as usize], bit as u8);
+            }
+        }
     }
 }
