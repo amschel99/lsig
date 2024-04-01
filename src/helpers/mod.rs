@@ -57,6 +57,10 @@ pub fn hex_to_bin(hex_string: &str) -> String {
     }
     result
 }
+pub fn string_to_binary(input: &str) -> String {
+    input.chars().map(|c| format!("{:08b}", c as u8)).collect()
+}
+
 // fn verify(signature: &str, message: &str, public_key: &str) {
 //     // Hash the message to get the digest
 //     let hashed_message = digest(message);
