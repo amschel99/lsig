@@ -5,11 +5,11 @@ use sha2::{Digest, Sha256};
 const KEY_SIZE: usize = 256;
 const KEY_ELEMENT_SIZE: usize = 32;
 
-pub fn random_string() -> String {
+fn random_string() -> String {
     let str_bytes = rand::thread_rng().gen::<[u8; KEY_ELEMENT_SIZE]>();
     hex::encode(str_bytes)
 }
-
+#[derive(Debug)]
 pub struct PrivateKey {
     key_pairs: Vec<(String, String)>,
 }
@@ -39,7 +39,16 @@ impl Signature {
         self.signatures[i].clone()
     }
 }
-
+/// Generates a random but cryptographically secure private key
+///
+/// # Examples
+/// ```rust
+///  
+///  let private_key= lsig::random_private_key();
+///  
+///
+///
+/// ```
 pub fn random_private_key() -> PrivateKey {
     let mut private_key: Vec<(String, String)> = Vec::with_capacity(KEY_SIZE);
     for _i in 0..KEY_SIZE {
@@ -49,13 +58,20 @@ pub fn random_private_key() -> PrivateKey {
         key_pairs: private_key,
     }
 }
+/// Hash a string slice.
 
-fn hash(str: &str) -> String {
+pub fn hash(str: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(str);
     hex::encode(hasher.finalize())
 }
-
+/// Create a public key from the generated private key
+///  # Example
+/// ```rust
+/// let private_key= lsig::random_private_key();
+/// let public_key=lsig::create_public_key(&private_key);
+///
+/// ```
 pub fn create_public_key(private_key: &PrivateKey) -> PublicKey {
     let mut public_key: Vec<(String, String)> = Vec::with_capacity(KEY_SIZE);
     for item in private_key.key_pairs.iter() {
@@ -84,6 +100,16 @@ fn hash_to_binary_array(hash_string: String) -> Vec<u8> {
     }
 }
 
+/// Sign a message using the private key and get a signature. A message must be hashed first as shown below.
+/// # Example
+/// ```rust
+/// let private_key= lsig::random_private_key();
+/// let message= lsig::hash("My confidential message");
+/// let signature=lsig::sign(message, &private_key);
+///
+///
+/// ```
+
 pub fn sign(message_hash: String, private_key: &PrivateKey) -> Signature {
     let message_binary_array = hash_to_binary_array(message_hash);
     let mut signature_array: Vec<String> = Vec::with_capacity(KEY_SIZE);
@@ -99,6 +125,22 @@ pub fn sign(message_hash: String, private_key: &PrivateKey) -> Signature {
         signatures: signature_array,
     }
 }
+
+/// Verify a message using the the signature and the public key
+/// # Example
+/// ```rust
+/// let private_key= lsig::random_private_key();
+/// let public_key=lsig::create_public_key(&private_key);
+/// let message= lsig::hash("My confidential message");
+/// let signature=lsig::sign(message.clone(), &private_key);
+///let message_is_authentic= lsig::verify(message.clone(), &signature,&public_key);
+/// let not_authentic=lsig::hash("Not authentic");
+/// let message_is_not_authentic= lsig::verify(not_authentic.clone(), &signature,&public_key);
+/// assert_eq!(true, message_is_authentic);
+/// assert_eq!(false,message_is_not_authentic);
+///
+///
+/// ```
 
 pub fn verify(message_hash: String, signature: &Signature, public_key: &PublicKey) -> bool {
     let message_binary_array = hash_to_binary_array(message_hash);
@@ -129,7 +171,7 @@ mod tests {
         let message_hash = hash("Hello, world!");
         let message_hash2 = hash("Hello");
         let signature = sign(message_hash.clone(), &private_key);
-
+        dbg!(private_key.key_pairs);
         assert_eq!(verify(message_hash.clone(), &signature, &public_key), true);
         assert_eq!(
             verify(message_hash2.clone(), &signature, &public_key),
