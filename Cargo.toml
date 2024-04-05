@@ -1,9 +1,11 @@
 [package]
 name = "lsig"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "MIT"
 description= "This crate provides functionalities for generating private and public key pairs and signing messages using those keys."
+repository= "https://github.com/amschel99/lsig"
+readme= "Readme.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
