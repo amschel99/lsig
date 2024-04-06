@@ -188,6 +188,7 @@ mod tests {
     }
 
     #[test]
+
     fn test_hash_to_binary_array() {
         let hash_string = "1234567890abcdef";
         let binary_array = hash_to_binary_array(hash_string.to_string());
