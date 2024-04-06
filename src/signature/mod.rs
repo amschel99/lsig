@@ -1,4 +1,3 @@
-use hex;
 use rand::prelude::*;
 use sha2::{Digest, Sha256};
 
@@ -115,7 +114,7 @@ pub fn sign(message_hash: String, private_key: &PrivateKey) -> Signature {
     let mut signature_array: Vec<String> = Vec::with_capacity(KEY_SIZE);
     for (index, item) in message_binary_array.iter().enumerate() {
         let (first_key, second_key) = private_key.get_key(index);
-        if item.clone() == 0 {
+        if *item == 0 {
             signature_array.push(first_key);
         } else {
             signature_array.push(second_key);
@@ -148,17 +147,15 @@ pub fn verify(message_hash: String, signature: &Signature, public_key: &PublicKe
         let sig = signature.get_key(index);
         let private_key_hash = hash(&sig);
         let (first_pub_key_hash, second_pub_key_hash) = public_key.get_key(index);
-        if item.clone() == 0 {
+        if *item == 0 {
             if private_key_hash != first_pub_key_hash {
                 return false;
             }
-        } else {
-            if private_key_hash != second_pub_key_hash {
-                return false;
-            }
+        } else if private_key_hash != second_pub_key_hash {
+            return false;
         }
     }
-    return true;
+    true
 }
 #[cfg(test)]
 mod tests {
