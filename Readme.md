@@ -3,8 +3,7 @@
 LSIG is a simple implementation of Lamport signatures designed for quantum-resistant digital signatures. Here's how it operates:
 
 1. **Private Key Generation**:
-   - A private key is generated, consisting of 512 bits.
-   - Each bit is randomly chosen, resulting in a total of 512 bits of entropy.
+   - A private key is randomly generated
 2. **Public Key Derivation**:
 
    - The public key is derived by hashing the private key using a secure hash function.
